@@ -11,6 +11,7 @@ Vous pouvez naviguer dans ce tutoriel grâce à la table des matières ci‑dess
 
 - [0. Préparation](#0-préparation-important)
 - [À quoi sert k0s ?](#à-quoi-sert-k0s-)
+- [Schéma du cluster k0s](#schéma-du-cluster-k0s)
 - [Kubernetes vs installation classique](#kubernetes-vs-installation-classique)
 - [1. Vérifier si k0s est installé](#1-vérifier-si-k0s-est-installé)
 - [2. Réinitialiser une ancienne installation](#2-optionnel-réinitialiser-une-ancienne-installation)
