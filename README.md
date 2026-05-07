@@ -72,6 +72,41 @@ Il permet de faire tourner des applications dans des conteneurs, avec :
 
 ---
 
+## Schéma du cluster k0s
+
+Ce schéma illustre la structure du cluster k0s installé dans ce tutoriel.
+
+```mermaid
+flowchart TD
+
+    subgraph Machine_Fedora["🖥️ Machine Fedora (hôte)"]
+        SELinux["SELinux (Permissif au début)"]
+        K0sBinary["k0s (binaire)"]
+        Systemd["Service systemd : k0scontroller"]
+    end
+
+    subgraph K0sCluster["☸️ Cluster Kubernetes (géré par k0s)"]
+        APIServer["API Server"]
+        Scheduler["Scheduler"]
+        ControllerManager["Controller Manager"]
+        Kubelet["Kubelet"]
+        KubeProxy["Kube-Proxy"]
+    end
+
+    subgraph Workloads["📦 Workloads (Applications)"]
+        Deployment["Deployment : nginx-demo"]
+        Pods["Pods (2 replicas)"]
+        Service["Service NodePort : 30080"]
+    end
+
+    Machine_Fedora --> K0sCluster
+    K0sCluster --> Workloads
+    Deployment --> Pods
+    Pods --> Service
+```
+
+---
+
 ## Kubernetes vs installation classique
 
 ```
