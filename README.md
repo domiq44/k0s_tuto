@@ -1,5 +1,7 @@
 # Tutoriel k0s sur Fedora 44 (version débutant + correctifs SELinux + explications pédagogiques)
 
+![k0s](https://img.shields.io/badge/k0s-Kubernetes-blue)
+
 Ce tutoriel vous guide pas à pas pour installer k0s, déployer NGINX et comprendre les bases de Kubernetes.
 
 ## Table des matières
