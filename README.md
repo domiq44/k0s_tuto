@@ -87,6 +87,8 @@ Il permet de faire tourner des applications dans des conteneurs, avec :
 +-----------------------------+        +-----------------------------+
 ```
 
+[⬆️ Retour en haut](#table-des-matières)
+
 ---
 
 ## 1. Vérifier si k0s est installé
@@ -100,6 +102,8 @@ sudo k0s version
 sudo k0s status
 sudo systemctl status k0scontroller
 ```
+
+[⬆️ Retour en haut](#table-des-matières)
 
 ---
 
@@ -179,6 +183,8 @@ NAME      STATUS     ROLES    AGE   VERSION
 fedora    NotReady   <none>   14s   v1.35.3+k0s
 ```
 
+[⬆️ Retour en haut](#table-des-matières)
+
 ---
 
 ## 3. Finaliser l’installation de k0s
@@ -204,6 +210,8 @@ Vérifier :
 sudo k0s kubectl get nodes
 ```
 
+[⬆️ Retour en haut](#table-des-matières)
+
 ---
 
 ## 4. Vérifier les composants Kubernetes
@@ -216,6 +224,8 @@ sudo k0s kubectl get pods -A
 ```
 
 Attendre que les pods du namespace kube-system soient Running.
+
+[⬆️ Retour en haut](#table-des-matières)
 
 ---
 
@@ -291,6 +301,8 @@ En résumé :
 Installer NGINX via `dnf` sert à faire tourner un serveur web sur la machine.  
 Le déployer via k0s sert à apprendre et utiliser les mécanismes fondamentaux de Kubernetes.
 
+[⬆️ Retour en haut](#table-des-matières)
+
 ---
 
 ## 6. Exposer NGINX via NodePort
@@ -330,6 +342,8 @@ Vérifier :
 sudo k0s kubectl get svc nginx-nodeport
 ```
 
+[⬆️ Retour en haut](#table-des-matières)
+
 ---
 
 ## 7. Tester l’accès
@@ -352,6 +366,8 @@ Tester :
 curl http://<NODE_IP>:30080
 ```
 
+[⬆️ Retour en haut](#table-des-matières)
+
 ---
 
 ## 8. Rolling update
@@ -364,6 +380,8 @@ sudo k0s kubectl set image deployment/nginx-demo nginx=nginx:1.25-alpine
 sudo k0s kubectl rollout status deployment/nginx-demo
 sudo k0s kubectl get pods -l app=nginx-demo
 ```
+
+[⬆️ Retour en haut](#table-des-matières)
 
 ---
 
@@ -380,6 +398,8 @@ sudo systemctl disable k0scontroller
 sudo k0s reset
 ```
 
+[⬆️ Retour en haut](#table-des-matières)
+
 ---
 
 ## 10. Réactiver SELinux (important)
@@ -390,6 +410,8 @@ sudo k0s reset
 ```bash
 sudo setenforce 1
 ```
+
+[⬆️ Retour en haut](#table-des-matières)
 
 ---
 
@@ -423,6 +445,8 @@ free -h
 df -h
 top
 ```
+
+[⬆️ Retour en haut](#table-des-matières)
 
 ---
 ## Glossaire Kubernetes (débutant)
@@ -473,6 +497,8 @@ Capacité de Kubernetes à recréer automatiquement un pod qui plante.
 ---
 
 Vous avez maintenant un cluster Kubernetes fonctionnel, un service exposé, un rolling update, et les bases pour aller plus loin.
+
+[⬆️ Retour en haut](#table-des-matières)
 
 # Fin du fichier Markdown
 
