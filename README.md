@@ -346,7 +346,7 @@ Cette configuration est recommandée pour toute installation k0s utilisée pour 
 
 
 ```bash
-sudo k0s kubectl get pods -A
+kubectl get pods -A
 ```
 
 Attendre que les pods du namespace kube-system soient Running.
@@ -400,8 +400,8 @@ sudo k0s kubectl apply -f nginx-deploy.yaml
 Vérifier :
 
 ```bash
-sudo k0s kubectl get deploy
-sudo k0s kubectl get pods -l app=nginx-demo
+kubectl get deploy
+kubectl get pods -l app=nginx-demo
 ```
 
 ---
@@ -465,7 +465,7 @@ sudo k0s kubectl apply -f nginx-svc.yaml
 Vérifier :
 
 ```bash
-sudo k0s kubectl get svc nginx-nodeport
+kubectl get svc nginx-nodeport
 ```
 
 [⬆️ Retour en haut](#table-des-matières)
@@ -502,9 +502,9 @@ curl http://<NODE_IP>:30080
 
 
 ```bash
-sudo k0s kubectl set image deployment/nginx-demo nginx=nginx:1.25-alpine
-sudo k0s kubectl rollout status deployment/nginx-demo
-sudo k0s kubectl get pods -l app=nginx-demo
+kubectl set image deployment/nginx-demo nginx=nginx:1.25-alpine
+kubectl rollout status deployment/nginx-demo
+kubectl get pods -l app=nginx-demo
 ```
 
 [⬆️ Retour en haut](#table-des-matières)
@@ -517,8 +517,8 @@ sudo k0s kubectl get pods -l app=nginx-demo
 
 
 ```bash
-sudo k0s kubectl delete -f nginx-svc.yaml
-sudo k0s kubectl delete -f nginx-deploy.yaml
+kubectl delete -f nginx-svc.yaml
+kubectl delete -f nginx-deploy.yaml
 sudo systemctl stop --now k0scontroller
 sudo systemctl disable k0scontroller
 sudo k0s reset
@@ -555,13 +555,13 @@ sudo journalctl -u k0scontroller -f
 Logs d’un pod :
 
 ```bash
-sudo k0s kubectl logs <pod-name>
+kubectl logs <pod-name>
 ```
 
 Description d’un pod :
 
 ```bash
-sudo k0s kubectl describe pod <pod-name>
+kubectl describe pod <pod-name>
 ```
 
 Vérifier les ressources :
