@@ -17,6 +17,7 @@ Vous pouvez naviguer dans ce tutoriel grâce à la table des matières ci‑dess
 - [2. Réinitialiser une ancienne installation](#2-optionnel-réinitialiser-une-ancienne-installation)
 - [2.1 Installer k0s (méthode officielle)](#21-installer-k0s-méthode-officielle)
 - [3. Finaliser l’installation de k0s](#3-finaliser-linstallation-de-k0s)
+- [3.1 Rendre kubectl utilisable globalement](#31-rendre-kubectl-utilisable-globalement-wrapper--sudoers)
 - [4. Vérifier les composants Kubernetes](#4-vérifier-les-composants-kubernetes)
 - [5. Déployer NGINX](#5-déployer-nginx)
 - [5.1 Pourquoi via k0s plutôt que via dnf ?](#51-pourquoi-déployer-nginx-via-k0s-plutôt-que-via-dnf-)
@@ -245,6 +246,95 @@ Vérifier :
 ```bash
 sudo k0s kubectl get nodes
 ```
+
+[⬆️ Retour en haut](#table-des-matières)
+
+---
+
+## 3.1 Rendre kubectl utilisable globalement (wrapper + sudoers)
+
+Par défaut, k0s n’installe pas `kubectl` comme un binaire global.  
+La commande doit être appelée via :
+
+```
+sudo k0s kubectl
+```
+
+Cela fonctionne, mais ce n’est pas pratique pour :
+
+- taper les commandes à la main
+- suivre des tutoriels Kubernetes
+- utiliser un runner CI/CD (GitHub Actions, GitLab, etc.)
+
+Pour simplifier l’utilisation, on crée un **wrapper kubectl** dans `/usr/local/bin`.
+
+### 1. Créer le wrapper kubectl
+
+Créer le fichier :
+
+```
+sudo nano /usr/local/bin/kubectl
+```
+
+Contenu :
+
+```sh
+#!/bin/sh
+sudo k0s kubectl "$@"
+```
+
+Rendre le fichier exécutable :
+
+```
+sudo chmod +x /usr/local/bin/kubectl
+```
+
+Tester :
+
+```
+kubectl version
+```
+
+### 2. Autoriser kubectl à s’exécuter sans mot de passe
+
+Le wrapper utilise `sudo`.  
+Pour éviter que chaque commande demande un mot de passe (et pour permettre l’usage en CI/CD), on ajoute une règle sudoers.
+
+Créer un fichier dédié :
+
+```
+sudo visudo -f /etc/sudoers.d/k0s-kubectl
+```
+
+Ajouter :
+
+```
+<nom-utilisateur> ALL=(ALL) NOPASSWD: /usr/bin/k0s kubectl *
+```
+
+Exemple si votre utilisateur s’appelle `fedora` :
+
+```
+fedora ALL=(ALL) NOPASSWD: /usr/bin/k0s kubectl *
+```
+
+Vérifier :
+
+```
+sudo -n k0s kubectl version
+```
+
+Si aucune demande de mot de passe n’apparaît, la configuration est correcte.
+
+### 3. Pourquoi c’est utile ?
+
+- `kubectl` devient utilisable comme dans n’importe quel cluster Kubernetes  
+- les commandes du tutoriel fonctionnent sans modification  
+- les workflows CI/CD peuvent déployer automatiquement  
+- aucune installation supplémentaire de kubectl n’est nécessaire  
+- vous utilisez la version kubectl fournie par k0s (donc compatible)
+
+Cette configuration est recommandée pour toute installation k0s utilisée pour apprendre Kubernetes ou pour faire du déploiement automatisé.
 
 [⬆️ Retour en haut](#table-des-matières)
 
