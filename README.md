@@ -273,7 +273,7 @@ Pour simplifier l’utilisation, on crée un **wrapper kubectl** dans `/usr/loca
 Créer le fichier :
 
 ```
-sudo nano /usr/local/bin/kubectl
+sudo vi /usr/local/bin/kubectl
 ```
 
 Contenu :
