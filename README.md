@@ -391,7 +391,7 @@ spec:
 Appliquer :
 
 ```bash
-sudo k0s kubectl apply -f nginx-deploy.yaml
+kubectl apply -f nginx-deploy.yaml
 ```
 
 > 💡 On vérifie que le Deployment et les pods sont bien créés.
@@ -456,7 +456,7 @@ spec:
 Appliquer :
 
 ```bash
-sudo k0s kubectl apply -f nginx-svc.yaml
+kubectl apply -f nginx-svc.yaml
 ```
 
 > 💡 On vérifie que le service est bien créé et écoute sur le bon port.
