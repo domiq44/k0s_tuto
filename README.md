@@ -1,44 +1,62 @@
-# Tutoriel k0s sur Fedora 44 (version débutant + correctifs SELinux + explications pédagogiques)
-
 ![k0s](https://img.shields.io/badge/k0s-Kubernetes-blue)
 
-Ce tutoriel vous guide pas à pas pour installer k0s, déployer NGINX et comprendre les bases de Kubernetes.
+# Installation et prise en main de k0s sur Fedora
+
+Ce tutoriel s’adresse à des débutants curieux qui :
+
+- connaissent un peu Linux (ligne de commande, sudo)
+- ont déjà entendu parler de conteneurs ou de Docker
+- veulent comprendre concrètement ce que fait Kubernetes, sans passer par un cloud
+
+À la fin, vous saurez :
+
+- installer k0s sur Fedora 44
+- vérifier l’état d’un cluster Kubernetes
+- déployer une application (NGINX) avec un Deployment
+- l’exposer via un Service NodePort
+- faire un rolling update sans coupure
 
 ## Table des matières
 
 Vous pouvez naviguer dans ce tutoriel grâce à la table des matières ci‑dessous :
 
 
-- [0. Préparation](#0-préparation-important)
-- [À quoi sert k0s ?](#à-quoi-sert-k0s-)
-- [Schéma du cluster k0s](#schéma-du-cluster-k0s)
-- [Kubernetes vs installation classique](#kubernetes-vs-installation-classique)
-- [1. Vérifier si k0s est installé](#1-vérifier-si-k0s-est-installé)
-- [2. Réinitialiser une ancienne installation](#2-optionnel-réinitialiser-une-ancienne-installation)
-- [2.1 Installer k0s (méthode officielle)](#21-installer-k0s-méthode-officielle)
-- [3. Finaliser l’installation de k0s](#3-finaliser-linstallation-de-k0s)
-- [3.1 Rendre kubectl utilisable globalement](#31-rendre-kubectl-utilisable-globalement-wrapper--sudoers)
-- [4. Vérifier les composants Kubernetes](#4-vérifier-les-composants-kubernetes)
-- [5. Déployer NGINX](#5-déployer-nginx)
-- [5.1 Pourquoi via k0s plutôt que via dnf ?](#51-pourquoi-déployer-nginx-via-k0s-plutôt-que-via-dnf-)
-- [6. Exposer NGINX via NodePort](#6-exposer-nginx-via-nodeport)
-- [7. Tester l’accès](#7-tester-laccès)
-- [8. Rolling update](#8-rolling-update)
-- [9. Nettoyage](#9-nettoyage)
-- [10. Réactiver SELinux](#10-réactiver-selinux-important)
-- [11. Dépannage rapide](#11-dépannage-rapide)
-- [Glossaire Kubernetes](#glossaire-kubernetes-débutant)
-- [Conclusion](#fin-du-fichier-markdown)
+- [1. Préparation](#1-préparation-important)
+- [2. À quoi sert k0s ?](#2-à-quoi-sert-k0s-)
+- [3. Schéma du cluster k0s](#3-schéma-du-cluster-k0s)
+- [4. Kubernetes vs installation classique](#4-kubernetes-vs-installation-classique)
+- [5. Vérifier si k0s est installé](#5-vérifier-si-k0s-est-installé)
+- [6. Réinitialiser une ancienne installation](#6-optionnel-réinitialiser-une-ancienne-installation)
+  - [6.1 Installer k0s (méthode officielle)](#61-installer-k0s-méthode-officielle)
+- [7. Finaliser l’installation de k0s](#7-finaliser-linstallation-de-k0s)
+  - [7.1 Rendre kubectl utilisable globalement](#71-rendre-kubectl-utilisable-globalement-wrapper--sudoers)
+- [8. Vérifier les composants Kubernetes](#8-vérifier-les-composants-kubernetes)
+- [9. Déployer NGINX](#9-déployer-nginx)
+  - [9.1 Pourquoi via k0s plutôt que via dnf ?](#91-pourquoi-déployer-nginx-via-k0s-plutôt-que-via-dnf-)
+- [10. Exposer NGINX via NodePort](#10-exposer-nginx-via-nodeport)
+- [11. Tester l’accès](#11-tester-laccès)
+- [12. Rolling update](#12-rolling-update)
+- [13. Nettoyage](#13-nettoyage)
+- [14. Réactiver SELinux](#14-réactiver-selinux)
+- [15. Dépannage rapide](#15-dépannage-rapide)
+- [16. Glossaire Kubernetes](#16-glossaire-kubernetes-débutant)
+- [17. Conclusion](#17-conclusion)
 
 ---
 
-## 0. Préparation (important)
+## 1. Préparation (important)
 
-Sur Fedora, SELinux en mode Enforcing empêche le pod metrics-server de fonctionner.
+Sur Fedora, SELinux en mode Enforcing peut empêcher certains composants Kubernetes de fonctionner correctement, notamment le pod `metrics-server`.
 
-> 💡 On désactive temporairement SELinux pour éviter que Kubernetes bloque certains composants internes.
->
-> 💡 Pour un tutoriel simple, on le met temporairement en mode permissif.
+Concrètement, si on ne le met pas temporairement en mode permissif :
+
+- certains pods système restent en statut `CrashLoopBackOff` ou `Error`
+- les métriques de ressources (CPU/RAM) ne remontent pas correctement
+- le comportement du cluster devient difficile à comprendre pour un débutant
+
+Pour garder le tutoriel simple, on met SELinux en mode permissif au début, puis on le réactive à la fin.
+
+⚠️ En production, on ne ferait **jamais** ça sans une vraie politique de sécurité adaptée.
 
 
 ```bash
@@ -48,9 +66,11 @@ sudo k0s kubectl delete pod -n kube-system -l k8s-app=metrics-server 2>/dev/null
 
 On réactivera SELinux à la fin.
 
+[⬆️ Retour en haut](#table-des-matières)
+
 ---
 
-## À quoi sert k0s ?
+## 2. À quoi sert k0s ?
 
 k0s est une distribution Kubernetes **ultra simple à installer**, pensée pour :
 
@@ -72,9 +92,11 @@ Il permet de faire tourner des applications dans des conteneurs, avec :
 - rolling updates
 - portabilité totale
 
+[⬆️ Retour en haut](#table-des-matières)
+
 ---
 
-## Schéma du cluster k0s
+## 3. Schéma du cluster k0s
 
 Ce schéma illustre la structure du cluster k0s installé dans ce tutoriel.
 
@@ -107,9 +129,11 @@ flowchart TD
     Pods --> Service
 ```
 
+[⬆️ Retour en haut](#table-des-matières)
+
 ---
 
-## Kubernetes vs installation classique
+## 4. Kubernetes vs installation classique
 
 ```
 +-----------------------------+        +-----------------------------+
@@ -128,155 +152,282 @@ flowchart TD
 
 ---
 
-## 1. Vérifier si k0s est installé
+## 5. Vérifier si k0s est installé
 
 > 💡 On vérifie que k0s est bien installé et fonctionnel avant de continuer.
 
+### Vérifier la présence du binaire
 
 ```bash
 sudo which k0s
+```
+
+- Vérifie que le binaire `k0s` est présent dans le PATH.
+- Si rien ne s’affiche : k0s n’est pas installé ou pas dans `/usr/local/bin`.
+
+---
+
+### Vérifier la version installée
+
+```bash
 sudo k0s version
+```
+
+- Affiche la version exacte de k0s installée.
+- Utile pour comparer avec la documentation ou diagnostiquer un problème.
+
+---
+
+### Vérifier l’état du nœud selon k0s
+
+```bash
 sudo k0s status
+```
+
+- Affiche l’état du nœud du point de vue de k0s.
+- Informations importantes :
+  - `Role: controller` → la machine joue le rôle de contrôleur
+  - `Workloads: true` → elle peut exécuter des pods
+  - `SingleNode: true` → cluster tout‑en‑un
+
+---
+
+### Vérifier le service systemd k0scontroller
+
+```bash
 sudo systemctl status k0scontroller
 ```
+
+- Vérifie que le service systemd créé par k0s est actif.
+- `k0scontroller` est le service qui lance k0s en mode *controller*.
+
+---
+
+### Vérifier que Kubernetes répond
+
+```bash
+sudo k0s kubectl get nodes
+```
+
+- Interroge l’API Kubernetes via le kubectl intégré à k0s.
+- Le nœud doit apparaître (même en `NotReady` juste après l’installation).
+
 
 [⬆️ Retour en haut](#table-des-matières)
 
 ---
 
-## 2. (Optionnel) Réinitialiser une ancienne installation
+## 6. (Optionnel) Réinitialiser une ancienne installation
 
-> 💡 Cette étape est utile si on veut repartir d’un cluster propre.
+> 💡 Cette étape permet de repartir d’un cluster totalement propre.
+>
+> ⚠️ Attention : cette opération est **destructive**. Toutes les données k0s seront supprimées.
 
+### Réinitialiser k0s proprement
 
 ```bash
 sudo k0s reset
+```
+
+- Demande à k0s de se désinstaller proprement.
+- Arrête les composants k0s.
+- Supprime les conteneurs gérés par k0s.
+- Nettoie les volumes et les données internes.
+- Efface le répertoire de données `/var/lib/k0s`.
+
+---
+
+### Supprimer manuellement les fichiers restants
+
+```bash
 sudo rm -rf /var/lib/k0s /etc/k0s
+```
+
+- Supprime toute configuration résiduelle.
+- Évite que d’anciens fichiers perturbent une nouvelle installation.
+
+---
+
+### Supprimer les services systemd k0s
+
+```bash
 sudo rm -f /etc/systemd/system/k0s*.service
 sudo systemctl daemon-reload
 ```
 
-## 2.1 Installer k0s (méthode officielle)
+- Supprime les unités systemd (`k0scontroller`, etc.).
+- Recharge systemd pour prendre en compte les suppressions.
 
-> 📘 Pour aller plus loin ou vérifier les dernières instructions officielles :
+---
+
+### (Optionnel) Vérifier que tout est propre
+
+```bash
+systemctl list-units | grep k0s
+ls /var/lib/k0s /etc/k0s
+```
+
+- Aucune unité systemd k0s ne doit apparaître.
+- Les répertoires `/var/lib/k0s` et `/etc/k0s` doivent être absents.
+
+[⬆️ Retour en haut](#table-des-matières)
+
+## 6.1 Installer k0s (méthode officielle)
+
+> 💡 Cette étape installe le binaire k0s depuis le script officiel du projet.
 >
-> • **Référence officielle (version spécifique)** :  
->   https://docs.k0sproject.io/v1.23.6+k0s.2/install/  
->   *Cette page correspond à une version précise de k0s. Elle garantit que les instructions ne changeront jamais, ce qui est utile pour reproduire un environnement à l’identique ou suivre un tutoriel basé sur une version donnée.*
->
-> • **Documentation stable (toujours à jour)** :  
->   https://docs.k0sproject.io/stable/install/  
->   *Cette page pointe toujours vers la dernière version stable de k0s. Idéal si vous souhaitez installer k0s avec les instructions les plus récentes.*
+> 💡 Le script télécharge automatiquement la dernière version stable compatible avec votre système.
 
-
-> 💡 Cette commande télécharge et installe automatiquement la dernière version stable de k0s.
-
+### Télécharger et installer k0s
 
 ```bash
 curl -sSLf https://get.k0s.sh | sudo sh
 ```
 
-Sortie attendue :
+- Télécharge la dernière version stable de k0s.
+- Installe le binaire dans `/usr/local/bin/k0s`.
+- Ne configure pas encore le cluster : seule l’installation du binaire est effectuée.
+
+Sortie typique :
 
 ```
-Downloading k0s from URL: https://github.com/k0sproject/k0s/releases/download/v1.35.3+k0s.0/k0s-v1.35.3+k0s.0-amd64
+Downloading k0s from URL: https://github.com/k0sproject/k0s/releases/download/vX.Y.Z/k0s-vX.Y.Z-amd64
 k0s is now executable in /usr/local/bin
-You can use it to complete the installation of k0s on this node, 
-see https://docs.k0sproject.io/stable/install/ for more information.
+You can use it to complete the installation of k0s on this node.
 ```
 
-> 💡 Une fois k0s installé, on peut lancer l’installation du contrôleur en mode single-node.
+---
 
+### Vérifier que k0s est bien installé
+
+```bash
+sudo k0s version
+```
+
+- Confirme que le binaire est fonctionnel.
+- Affiche la version installée.
+
+---
+
+### Installer le contrôleur en mode single-node
 
 ```bash
 sudo k0s install controller --single
+```
+
+- Configure cette machine comme **contrôleur Kubernetes**.
+- Active aussi l’exécution des **workloads** (pods) sur ce même nœud.
+- Crée le service systemd `k0scontroller`.
+
+---
+
+### Démarrer k0s
+
+```bash
 sudo k0s start
+```
+
+- Démarre le service systemd créé précédemment.
+- Lance les composants Kubernetes (API server, scheduler, controller-manager, kubelet, etc.).
+
+---
+
+### Vérifier l’état du service
+
+```bash
 sudo k0s status
 ```
 
-Exemple de sortie :
+- Confirme que k0s fonctionne correctement.
+- Affiche le rôle du nœud, le PID, et l’état de l’API Kubernetes.
 
-```
-Version: v1.35.3+k0s.0
-Process ID: 37495
-Role: controller
-Workloads: true
-SingleNode: true
-Kube-api probing successful: true
-Kube-api probing last error:  
-```
+---
 
-> 💡 On vérifie que le nœud apparaît bien dans Kubernetes.
-
+### Vérifier que le nœud apparaît dans Kubernetes
 
 ```bash
 sudo k0s kubectl get nodes
 ```
 
-Sortie attendue :
+- Interroge l’API Kubernetes via le kubectl intégré à k0s.
+- Le nœud apparaît généralement en `NotReady` pendant quelques secondes, le temps que les composants démarrent.
 
-```
-NAME      STATUS     ROLES    AGE   VERSION
-fedora    NotReady   <none>   14s   v1.35.3+k0s
-```
 
 [⬆️ Retour en haut](#table-des-matières)
 
 ---
 
-## 3. Finaliser l’installation de k0s
+## 7. Finaliser l’installation de k0s
 
-> 💡 Maintenant que k0s est installé, on finalise la configuration du contrôleur et on active le service systemd.
+> 💡 Cette étape active le service systemd créé par k0s et démarre réellement le cluster Kubernetes.
 >
-> 💡 La commande `k0s install controller --single` est relancée ici pour enregistrer proprement le service systemd, même si elle a déjà été exécutée lors de l’installation initiale.
+> 💡 Elle est nécessaire même si `k0s install controller --single` a déjà été exécuté juste après l’installation du binaire.
 
-
+### Installer (ou réinstaller proprement) le service systemd
 
 ```bash
 sudo k0s install controller --single
+```
+
+- Configure cette machine comme **contrôleur Kubernetes**.
+- Active aussi l’exécution des **workloads** (pods) sur ce même nœud.
+- Crée ou met à jour le service systemd `k0scontroller`.
+
+---
+
+### Activer et démarrer le service systemd
+
+```bash
 sudo systemctl enable --now k0scontroller
+```
+
+- Active le service au démarrage de la machine.
+- Démarre immédiatement k0s.
+- Lance les composants Kubernetes : API Server, Scheduler, Controller Manager, Kubelet, etc.
+
+---
+
+### Vérifier l’état du service
+
+```bash
 sudo systemctl status k0scontroller
 ```
 
-> 💡 On vérifie que le nœud est bien reconnu par Kubernetes.
+- Permet de vérifier que le service est bien actif (`active (running)`).
+- En cas de problème, les logs systemd aideront à diagnostiquer.
 
+---
 
-Vérifier :
+### Vérifier que Kubernetes reconnaît le nœud
 
 ```bash
 sudo k0s kubectl get nodes
 ```
 
+- Interroge l’API Kubernetes via le kubectl intégré à k0s.
+- Le nœud doit apparaître en `Ready` une fois que tous les composants sont démarrés.
+
 [⬆️ Retour en haut](#table-des-matières)
 
 ---
 
-## 3.1 Rendre kubectl utilisable globalement (wrapper + sudoers)
+## 7.1 Rendre kubectl utilisable globalement (wrapper + sudoers)
 
-Par défaut, k0s n’installe pas `kubectl` comme un binaire global.  
-La commande doit être appelée via :
+> 💡 Par défaut, k0s n’installe pas `kubectl` comme un binaire global.
+>
+> 💡 Il faut normalement utiliser : `sudo k0s kubectl ...`
+>
+> 💡 Cette section rend `kubectl` utilisable comme dans n’importe quel cluster Kubernetes.
 
-```
-sudo k0s kubectl
-```
-
-Cela fonctionne, mais ce n’est pas pratique pour :
-
-- taper les commandes à la main
-- suivre des tutoriels Kubernetes
-- utiliser un runner CI/CD (GitHub Actions, GitLab, etc.)
-
-Pour simplifier l’utilisation, on crée un **wrapper kubectl** dans `/usr/local/bin`.
-
-### 1. Créer le wrapper kubectl
+### Créer un wrapper kubectl
 
 Créer le fichier :
 
-```
+```bash
 sudo vi /usr/local/bin/kubectl
 ```
 
-Contenu :
+Contenu du fichier :
 
 ```sh
 #!/bin/sh
@@ -285,83 +436,108 @@ sudo k0s kubectl "$@"
 
 Rendre le fichier exécutable :
 
-```
+```bash
 sudo chmod +x /usr/local/bin/kubectl
 ```
 
 Tester :
 
-```
+```bash
 kubectl version
 ```
 
-### 2. Autoriser kubectl à s’exécuter sans mot de passe
+---
 
-Le wrapper utilise `sudo`.  
-Pour éviter que chaque commande demande un mot de passe (et pour permettre l’usage en CI/CD), on ajoute une règle sudoers.
+### Autoriser kubectl à s’exécuter sans mot de passe
 
-Créer un fichier dédié :
+Créer un fichier sudoers dédié :
 
-```
+```bash
 sudo visudo -f /etc/sudoers.d/k0s-kubectl
 ```
 
-Ajouter :
+Ajouter la ligne suivante (remplacer `<utilisateur>` par votre nom d’utilisateur) :
 
 ```
-<nom-utilisateur> ALL=(ALL) NOPASSWD: /usr/bin/k0s kubectl *
+<utilisateur> ALL=(ALL) NOPASSWD: /usr/bin/k0s kubectl *
 ```
 
-Exemple si votre utilisateur s’appelle `fedora` :
+Exemple pour un utilisateur nommé `john` :
 
 ```
-fedora ALL=(ALL) NOPASSWD: /usr/bin/k0s kubectl *
+john ALL=(ALL) NOPASSWD: /usr/bin/k0s kubectl *
 ```
 
-Vérifier :
+Tester que sudo ne demande pas de mot de passe :
 
-```
+```bash
 sudo -n k0s kubectl version
 ```
 
-Si aucune demande de mot de passe n’apparaît, la configuration est correcte.
+---
 
-### 3. Pourquoi c’est utile ?
+### Pourquoi ce wrapper est utile ?
 
-- `kubectl` devient utilisable comme dans n’importe quel cluster Kubernetes  
-- les commandes du tutoriel fonctionnent sans modification  
-- les workflows CI/CD peuvent déployer automatiquement  
-- aucune installation supplémentaire de kubectl n’est nécessaire  
-- vous utilisez la version kubectl fournie par k0s (donc compatible)
+- Permet d’utiliser `kubectl` comme dans n’importe quel tutoriel Kubernetes.  
+- Évite d’installer un binaire kubectl séparé.  
+- Assure que la version de kubectl correspond toujours à celle de k0s.  
+- Permet l’usage dans des scripts ou CI/CD sans interaction.  
 
-Cette configuration est recommandée pour toute installation k0s utilisée pour apprendre Kubernetes ou pour faire du déploiement automatisé.
 
 [⬆️ Retour en haut](#table-des-matières)
 
 ---
 
-## 4. Vérifier les composants Kubernetes
+## 8. Vérifier les composants Kubernetes
 
-> 💡 On s’assure que tous les pods système sont bien démarrés.
+> 💡 Après le démarrage de k0s, Kubernetes lance automatiquement plusieurs pods système.
+>
+> 💡 Cette étape permet de vérifier que tous les composants essentiels sont bien en cours d’exécution.
 
+### Afficher tous les pods de tous les namespaces
 
 ```bash
 kubectl get pods -A
 ```
 
-Attendre que les pods du namespace kube-system soient Running.
+- Liste l’ensemble des pods du cluster.
+- Permet de vérifier l’état des composants internes (API server, scheduler, controller-manager, coredns, kube-proxy, etc.).
+- Les pods du namespace `kube-system` doivent passer en `Running` ou `Completed`.
+
+---
+
+### Ce que vous devez observer
+
+- `coredns` : doit être en `Running` (service DNS interne du cluster).
+- `kube-proxy` : doit être en `Running` (gestion du réseau des pods).
+- `metrics-server` : peut mettre quelques secondes à démarrer.
+- `k0s-controller` / `k0s-worker` : selon la configuration single-node.
+
+Si certains pods restent en `Pending` ou `CrashLoopBackOff`, vous pouvez consulter leurs logs :
+
+```bash
+kubectl logs -n kube-system <nom-du-pod>
+```
+
+Ou obtenir une description détaillée :
+
+```bash
+kubectl describe pod -n kube-system <nom-du-pod>
+```
 
 [⬆️ Retour en haut](#table-des-matières)
 
 ---
 
-## 5. Déployer NGINX
+## 9. Déployer NGINX
 
-> 💡 Ce fichier décrit un Deployment, c’est-à-dire une application gérée automatiquement par Kubernetes.
+> 💡 Cette étape montre comment déployer une application dans Kubernetes à l’aide d’un Deployment.
+>
+> 💡 Un Deployment garantit qu’un nombre donné de pods est toujours en cours d’exécution.
 
+### Créer le fichier de déploiement
 
-
-Créer `nginx-deploy.yaml` :
+Créer un fichier nommé `nginx-deploy.yaml` :
 
 ```yaml
 apiVersion: apps/v1
@@ -385,58 +561,101 @@ spec:
             - containerPort: 80
 ```
 
-> 💡 On demande à Kubernetes de créer l’application à partir du fichier YAML.
+- `replicas: 2` → Kubernetes maintient toujours 2 pods NGINX en fonctionnement.
+- `image: nginx:stable` → image officielle NGINX.
+- `containerPort: 80` → port exposé dans le conteneur.
 
+---
 
-Appliquer :
+### Appliquer le déploiement
 
 ```bash
 kubectl apply -f nginx-deploy.yaml
 ```
 
-> 💡 On vérifie que le Deployment et les pods sont bien créés.
-
-
-Vérifier :
-
-```bash
-kubectl get deploy
-kubectl get pods -l app=nginx-demo
-```
+- Demande à Kubernetes de créer le Deployment.
+- Kubernetes crée automatiquement les pods associés.
 
 ---
 
-## 5.1. Pourquoi déployer NGINX via k0s plutôt que via dnf ?
+### Vérifier que le Deployment est créé
 
-> 💡 Cette section explique pourquoi on utilise Kubernetes plutôt qu’une installation classique.
+```bash
+kubectl get deploy
+```
 
+- Affiche les Deployments existants.
+- La colonne `READY` doit afficher `2/2`.
 
-Installer NGINX avec `dnf install nginx` installe un service système classique, géré par systemd, qui tourne directement sur l’hôte Fedora. C’est simple, mais cela ne reflète pas le fonctionnement d’une application dans un environnement Kubernetes.
+---
 
-Déployer NGINX via k0s permet de comprendre et de pratiquer plusieurs concepts essentiels :
+### Vérifier les pods créés
 
-- Isolation par conteneur : NGINX tourne dans un pod, isolé du système hôte.
-- Déploiement déclaratif : on décrit l’état souhaité, Kubernetes le garantit.
-- Auto-réparation : si un pod plante, Kubernetes le recrée automatiquement.
-- Scalabilité : changer le nombre d’instances se fait en modifiant `replicas`.
-- Réseau Kubernetes : un Service NodePort expose l’application proprement.
-- Rolling updates : mise à jour sans interruption de service.
-- Portabilité : le même YAML fonctionne sur n’importe quel cluster Kubernetes.
+```bash
+kubectl get pods -l app=nginx-demo
+```
 
-En résumé :  
-Installer NGINX via `dnf` sert à faire tourner un serveur web sur la machine.  
-Le déployer via k0s sert à apprendre et utiliser les mécanismes fondamentaux de Kubernetes.
+- Filtre les pods ayant le label `app=nginx-demo`.
+- Les pods doivent être en `Running`.
+
+---
+
+### (Optionnel) Voir les détails d’un pod
+
+```bash
+kubectl describe pod -l app=nginx-demo
+```
+
+- Affiche les événements, l’image utilisée, les volumes, etc.
 
 [⬆️ Retour en haut](#table-des-matières)
 
 ---
 
-## 6. Exposer NGINX via NodePort
+## 9.1 Pourquoi déployer NGINX via k0s plutôt que via dnf ?
 
-> 💡 Un Service NodePort permet d’accéder à l’application depuis l’extérieur du cluster.
+> 💡 Installer NGINX via `dnf` fonctionne, mais cela ne reflète pas le fonctionnement d’une application dans Kubernetes.
+>
+> 💡 Déployer NGINX via k0s permet de comprendre les mécanismes fondamentaux d’un cluster Kubernetes.
 
+### Installation classique (dnf)
 
-Créer `nginx-svc.yaml` :
+- L’application tourne directement sur l’hôte Fedora.
+- Le service est géré par systemd.
+- Les fichiers sont stockés dans `/etc/nginx` et `/var/www`.
+- Une seule instance tourne par défaut.
+- La mise à jour est manuelle.
+- Si le service plante, il faut intervenir soi-même.
+
+### Déploiement via Kubernetes (k0s)
+
+- L’application tourne dans un **pod**, isolé du système hôte.
+- Le déploiement est **déclaratif** : on décrit l’état souhaité dans un fichier YAML.
+- Kubernetes garantit automatiquement :
+  - le nombre de pods (`replicas`)
+  - leur redémarrage en cas de crash (**self‑healing**)
+  - les mises à jour progressives (**rolling updates**)
+- Le réseau est géré par Kubernetes (Services, NodePort, ClusterIP).
+- Le même fichier YAML fonctionne sur n’importe quel cluster Kubernetes.
+
+### En résumé
+
+Installer NGINX via `dnf` sert à faire tourner un serveur web sur la machine.  
+Le déployer via k0s sert à **apprendre Kubernetes** et à comprendre comment les applications sont réellement gérées dans un cluster moderne.
+
+[⬆️ Retour en haut](#table-des-matières)
+
+---
+
+## 10. Exposer NGINX via NodePort
+
+> 💡 Un Service de type **NodePort** permet d’accéder à une application Kubernetes depuis l’extérieur du cluster.
+>
+> 💡 Kubernetes ouvre un port sur le nœud (ex : 30080) et redirige le trafic vers les pods NGINX.
+
+### Créer le fichier de Service
+
+Créer un fichier nommé `nginx-svc.yaml` :
 
 ```yaml
 apiVersion: v1
@@ -453,176 +672,497 @@ spec:
       nodePort: 30080
 ```
 
-Appliquer :
+- `type: NodePort` → expose l’application sur un port du nœud.
+- `port: 80` → port du Service dans le cluster.
+- `targetPort: 80` → port du conteneur NGINX.
+- `nodePort: 30080` → port accessible depuis l’extérieur.
+
+---
+
+### Appliquer le Service
 
 ```bash
 kubectl apply -f nginx-svc.yaml
 ```
 
-> 💡 On vérifie que le service est bien créé et écoute sur le bon port.
+- Crée le Service dans Kubernetes.
+- Ouvre le port 30080 sur le nœud.
 
+---
 
-Vérifier :
+### Vérifier que le Service est actif
 
 ```bash
 kubectl get svc nginx-nodeport
 ```
 
+- Affiche les informations du Service.
+- La colonne `PORT(S)` doit contenir quelque chose comme :  
+  `80:30080/TCP`
+
+---
+
+### (Optionnel) Vérifier les endpoints associés
+
+```bash
+kubectl get endpoints nginx-nodeport
+```
+
+- Permet de vérifier que le Service pointe bien vers les pods NGINX.
+- Les IP listées doivent correspondre aux pods du Deployment.
+
+
 [⬆️ Retour en haut](#table-des-matières)
 
 ---
 
-## 7. Tester l’accès
+## 11. Tester l’accès
 
-Trouver l’IP du nœud :
+> 💡 Maintenant que le Service NodePort est créé, on peut tester l’accès à NGINX depuis l’extérieur du cluster.
+>
+> 💡 L’idée : récupérer l’IP du nœud, puis accéder au port 30080 exposé par Kubernetes.
 
-> 💡 On récupère l’adresse IP de la machine pour tester l’accès depuis l’extérieur.
-
+### Récupérer l’adresse IP du nœud
 
 ```bash
 ip -4 addr show $(ip route get 8.8.8.8 | awk '{print $5; exit}') | grep -oP '(?<=inet\s)\d+(\.\d+){3}'
 ```
 
-Tester :
+- Détecte automatiquement l’interface réseau utilisée pour sortir vers Internet.
+- Affiche l’adresse IPv4 du nœud Fedora.
 
-> 💡 On teste que NGINX répond bien via le port exposé par Kubernetes.
+---
 
+### Tester l’accès à NGINX via NodePort
 
 ```bash
 curl http://<NODE_IP>:30080
 ```
 
+- Remplacer `<NODE_IP>` par l’adresse obtenue ci‑dessus.
+- Si tout fonctionne, vous devez voir la page HTML par défaut de NGINX.
+
+---
+
+### (Optionnel) Tester depuis un navigateur
+
+Ouvrir :
+
+```
+http://<NODE_IP>:30080
+```
+
+- Vous devriez voir la page “Welcome to nginx!”.
+
+
 [⬆️ Retour en haut](#table-des-matières)
 
 ---
 
-## 8. Rolling update
+## 12. Rolling update
 
-> 💡 Kubernetes met à jour les pods un par un, sans interruption de service.
+> 💡 Un *rolling update* permet de mettre à jour une application sans interruption de service.
+>
+> 💡 Kubernetes remplace les pods un par un, en s’assurant qu’au moins un pod reste disponible.
 
+### Mettre à jour l’image du Deployment
 
 ```bash
 kubectl set image deployment/nginx-demo nginx=nginx:1.25-alpine
+```
+
+- Met à jour l’image du conteneur `nginx` dans le Deployment.
+- Kubernetes crée de nouveaux pods avec la nouvelle image.
+- Les anciens pods sont arrêtés uniquement lorsque les nouveaux sont prêts.
+
+---
+
+### Suivre la progression du rolling update
+
+```bash
 kubectl rollout status deployment/nginx-demo
+```
+
+- Affiche l’avancement de la mise à jour.
+- Le rolling update est terminé lorsque le message indique que le Deployment est à jour.
+
+---
+
+### Vérifier les pods après la mise à jour
+
+```bash
 kubectl get pods -l app=nginx-demo
 ```
 
+- Permet de voir les nouveaux pods créés.
+- Les anciens pods ne doivent plus apparaître.
+
+---
+
+### (Optionnel) Voir l’historique des déploiements
+
+```bash
+kubectl rollout history deployment/nginx-demo
+```
+
+- Affiche les différentes révisions du Deployment.
+- Utile pour vérifier les changements appliqués.
+
+---
+
+### (Optionnel) Revenir à la version précédente
+
+```bash
+kubectl rollout undo deployment/nginx-demo
+```
+
+- Permet de revenir à la révision précédente en cas de problème.
+
 [⬆️ Retour en haut](#table-des-matières)
 
 ---
 
-## 9. Nettoyage
+## 13. Nettoyage
 
-> 💡 On supprime toutes les ressources créées et on réinitialise k0s.
+> 💡 Cette étape permet de supprimer les ressources créées durant le tutoriel.
+>
+> 💡 Elle est utile pour repartir sur un cluster propre ou éviter de consommer des ressources inutilement.
 
+### Supprimer le Service NodePort
 
 ```bash
 kubectl delete -f nginx-svc.yaml
-kubectl delete -f nginx-deploy.yaml
-sudo systemctl stop --now k0scontroller
-sudo systemctl disable k0scontroller
-sudo k0s reset
 ```
+
+- Supprime le Service `nginx-nodeport`.
+- Le port 30080 n’est plus exposé sur le nœud.
+
+---
+
+### Supprimer le Deployment NGINX
+
+```bash
+kubectl delete -f nginx-deploy.yaml
+```
+
+- Supprime le Deployment `nginx-demo`.
+- Kubernetes supprime automatiquement les pods associés.
+
+---
+
+### Vérifier que tout est supprimé
+
+```bash
+kubectl get pods
+kubectl get svc
+```
+
+- Aucun pod `nginx-demo` ne doit apparaître.
+- Aucun Service `nginx-nodeport` ne doit apparaître.
+
+---
+
+### (Optionnel) Supprimer les fichiers YAML
+
+```bash
+rm -f nginx-deploy.yaml nginx-svc.yaml
+```
+
+- Nettoie les fichiers locaux utilisés pour le tutoriel.
 
 [⬆️ Retour en haut](#table-des-matières)
 
 ---
 
-## 10. Réactiver SELinux (important)
+## 14. Réactiver SELinux
 
-> 💡 On remet SELinux en mode sécurisé une fois la démonstration terminée.
+> 💡 Si vous aviez désactivé SELinux pour simplifier l’installation ou le débogage, il est recommandé de le réactiver une fois que k0s fonctionne correctement.
+>
+> 💡 SELinux en mode *enforcing* améliore significativement la sécurité du système.
 
+### Vérifier l’état actuel de SELinux
+
+```bash
+getenforce
+```
+
+- Affiche l’état actuel : `Enforcing`, `Permissive` ou `Disabled`.
+
+---
+
+### Réactiver SELinux en mode permissif (étape intermédiaire recommandée)
+
+```bash
+sudo setenforce 0
+```
+
+- Passe SELinux en mode *permissive* sans redémarrage.
+- Permet de tester que k0s fonctionne correctement avant de revenir en *enforcing*.
+
+Pour rendre ce mode persistant :
+
+```bash
+sudo sed -i 's/^SELINUX=.*/SELINUX=permissive/' /etc/selinux/config
+```
+
+---
+
+### Réactiver SELinux en mode enforcing
 
 ```bash
 sudo setenforce 1
 ```
 
+Pour rendre ce mode persistant :
+
+```bash
+sudo sed -i 's/^SELINUX=.*/SELINUX=enforcing/' /etc/selinux/config
+```
+
+---
+
+### Redémarrer la machine (recommandé)
+
+```bash
+sudo reboot
+```
+
+- Assure que toutes les politiques SELinux sont correctement appliquées.
+- Vérifie ensuite :
+
+```bash
+getenforce
+```
+
+Vous devez obtenir :
+
+```
+Enforcing
+```
+
 [⬆️ Retour en haut](#table-des-matières)
 
 ---
 
-## 11. Dépannage rapide
+## 15. Dépannage rapide
 
-> 💡 Quelques commandes utiles pour diagnostiquer un problème dans Kubernetes.
+> 💡 Cette section regroupe les problèmes les plus fréquents rencontrés lors de l’installation ou de l’utilisation de k0s.
 
+### Le nœud reste en NotReady
 
-Logs k0s :
+```bash
+kubectl get nodes
+```
+
+Causes possibles :
+- Les pods système ne sont pas encore démarrés.
+- Le kubelet n’arrive pas à joindre l’API server.
+- SELinux bloque certains composants.
+
+Vérifier les pods système :
+
+```bash
+kubectl get pods -A
+```
+
+---
+
+### Les pods restent en Pending
+
+Causes possibles :
+- Pas assez de ressources (CPU/RAM).
+- Le scheduler ne peut pas placer les pods.
+- Le réseau CNI n’est pas prêt.
+
+Vérifier les événements :
+
+```bash
+kubectl describe pod <nom-du-pod>
+```
+
+---
+
+### Les pods sont en CrashLoopBackOff
+
+Causes possibles :
+- Mauvaise image.
+- Mauvaise configuration.
+- Port déjà utilisé.
+
+Voir les logs :
+
+```bash
+kubectl logs <nom-du-pod>
+```
+
+---
+
+### Impossible d’accéder au NodePort
+
+Vérifier que le service est bien créé :
+
+```bash
+kubectl get svc
+```
+
+Vérifier les endpoints :
+
+```bash
+kubectl get endpoints nginx-nodeport
+```
+
+Vérifier que le port est ouvert sur le nœud :
+
+```bash
+sudo ss -tulpn | grep 30080
+```
+
+---
+
+### kubectl demande un mot de passe sudo
+
+Le wrapper n’est pas configuré correctement.
+
+Vérifier le fichier sudoers :
+
+```bash
+sudo visudo -f /etc/sudoers.d/k0s-kubectl
+```
+
+---
+
+### k0s ne démarre pas
+
+Vérifier le service systemd :
+
+```bash
+sudo systemctl status k0scontroller
+```
+
+Voir les logs :
 
 ```bash
 sudo journalctl -u k0scontroller -f
 ```
 
-Logs d’un pod :
+---
+
+### Réinitialiser complètement k0s
 
 ```bash
-kubectl logs <pod-name>
-```
-
-Description d’un pod :
-
-```bash
-kubectl describe pod <pod-name>
-```
-
-Vérifier les ressources :
-
-```bash
-free -h
-df -h
-top
+sudo k0s reset
+sudo rm -rf /var/lib/k0s /etc/k0s
+sudo systemctl daemon-reload
 ```
 
 [⬆️ Retour en haut](#table-des-matières)
 
 ---
-## Glossaire Kubernetes (débutant)
 
-> 💡 Ce glossaire regroupe les termes essentiels rencontrés dans ce tutoriel.
+## 16. Glossaire Kubernetes (débutant)
+
+> 💡 Ce glossaire regroupe les termes essentiels pour comprendre Kubernetes et k0s.
+> 💡 Il est volontairement simplifié pour les débutants.
 
 ### Cluster
-Ensemble de machines (physiques ou virtuelles) sur lesquelles Kubernetes déploie et gère des applications.
+Ensemble de machines (physiques ou virtuelles) qui exécutent Kubernetes.
 
 ### Node (nœud)
-Machine du cluster.  
-Dans ce tutoriel : la machine Fedora.
+Machine qui fait partie du cluster.  
+Peut être :
+- **Control Plane** : gère le cluster.
+- **Worker** : exécute les applications.
 
 ### Pod
 Plus petite unité d’exécution dans Kubernetes.  
 Contient un ou plusieurs conteneurs.
 
-### Container (conteneur)
-Application empaquetée avec tout ce qu’il faut pour tourner.  
-Exemple : l’image `nginx:stable`.
+### Container
+Application empaquetée avec tout ce qu’il faut pour fonctionner.  
+Exemple : un conteneur NGINX.
 
 ### Deployment
-Objet Kubernetes qui gère automatiquement :
-- le nombre de pods  
-- leur mise à jour  
-- leur redémarrage en cas de crash  
+Objet Kubernetes qui gère un groupe de pods identiques.  
+Assure :
+- le redémarrage automatique  
+- la mise à l’échelle  
+- les mises à jour progressives (rolling updates)
 
 ### Service
-Objet qui expose une application.  
-Il fournit une adresse stable, même si les pods changent.
+Objet qui expose un ou plusieurs pods via une adresse stable.  
+Les pods peuvent changer, mais le Service reste le même.
 
 ### NodePort
-Type de Service qui ouvre un port sur le nœud (ex : `30080`) pour accéder à l’application depuis l’extérieur.
+Type de Service qui ouvre un port sur le nœud (ex : 30080) pour accéder à l’application depuis l’extérieur.
 
-### YAML
-Format de fichier utilisé pour décrire les ressources Kubernetes (Deployment, Service, etc.).
+### ClusterIP
+Type de Service interne au cluster.  
+Non accessible depuis l’extérieur.
 
 ### Namespace
 Espace logique pour organiser les ressources.  
-Exemple : `kube-system` contient les composants internes de Kubernetes.
+Exemple : `default`, `kube-system`.
+
+### kubelet
+Agent qui tourne sur chaque nœud et gère les pods.
+
+### kube-proxy
+Composant réseau qui route le trafic vers les bons pods.
+
+### coredns
+Serveur DNS interne du cluster.  
+Permet aux pods de se résoudre entre eux via des noms DNS.
+
+### API Server
+Point d’entrée de Kubernetes.  
+Toutes les commandes `kubectl` passent par lui.
+
+### YAML
+Format de fichier utilisé pour décrire les ressources Kubernetes.  
+Exemple : Deployment, Service, Namespace, etc.
 
 ### Rolling update
-Mise à jour progressive des pods, sans interruption de service.
+Mise à jour progressive d’un Deployment, sans interruption de service.
 
-### Self‑healing
-Capacité de Kubernetes à recréer automatiquement un pod qui plante.
+### Wrapper
+Petit script qui simplifie une commande.  
+Exemple : wrapper `kubectl` pour éviter `sudo k0s kubectl`.
+
+### SELinux
+Mécanisme de sécurité renforcée sous Linux.  
+Peut être en mode :
+- **enforcing**
+- **permissive**
+- **disabled**
+
+[⬆️ Retour en haut](#table-des-matières)
 
 ---
 
-Vous avez maintenant un cluster Kubernetes fonctionnel, un service exposé, un rolling update, et les bases pour aller plus loin.
+## 17. Conclusion
+
+Vous disposez maintenant d’un cluster Kubernetes fonctionnel basé sur k0s, capable d’exécuter des applications, de les exposer, de les mettre à jour sans interruption et de s’auto‑réparer.  
+Vous avez également vu comment :
+
+- installer et configurer k0s  
+- utiliser kubectl de manière fluide  
+- déployer une application (NGINX)  
+- exposer un service via NodePort  
+- réaliser un rolling update  
+- diagnostiquer les problèmes courants  
+- comprendre les concepts essentiels de Kubernetes  
+
+Ce guide constitue une base solide pour aller plus loin.  
+Les prochaines étapes possibles incluent :
+
+- explorer les Ingress Controllers  
+- ajouter un second nœud au cluster  
+- déployer une base de données ou une application plus complexe  
+- mettre en place un stockage persistant (PersistentVolumes)  
+- installer un tableau de bord Kubernetes (Lens, k9s, Dashboard)  
+
+Kubernetes est un vaste écosystème : chaque étape que vous maîtrisez ouvre la porte à de nouvelles possibilités.  
+Bonne exploration !
 
 [⬆️ Retour en haut](#table-des-matières)
 
